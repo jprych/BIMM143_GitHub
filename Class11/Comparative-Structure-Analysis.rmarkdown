@@ -1,0 +1,83 @@
+---
+title: "Comparative Structure Analysis"
+author: "Jordan Prych (PID: A17080226)"
+format: html
+toc: True
+---
+
+
+
+Here we run through a complete "pipeline" of structure analysis that begins with a single sequence identifier and ends in a PCA analysis. 
+
+
+
+```{r}
+library(bio3d)
+
+```
+
+
+
+##Step 1: Get a Sequence 
+retrieve a sequence for the protein we are interested in. We will take ADK "1ake_A"
+
+
+
+```{r}
+id <- "1ake_A"
+aa <- get.seq(id)
+aa
+```
+
+
+
+##Step 2: BLAST Search 
+Run a BLAST search of the PDB for all related sequences to our input `aa`
+
+
+```{r}
+blast <- blast.pdb(aa)
+```
+
+```{r}
+hits <- plot(blast)
+```
+
+
+##Step 3: Download Structures 
+These are our "top hits" i.e. all the structures in the PDB database relates to our input sequences. 
+
+
+```{r}
+hits$pdb.id
+```
+
+```{r}
+#Download related PDB files 
+files <- get.pdb(hits$pdb.id, path="pdbs", split=TRUE, gzip=TRUE)
+```
+
+
+
+## Step 4: Align and Superpose 
+
+
+
+```{r}
+# Align releated PDBs
+pdbs <- pdbaln(files, fit = TRUE, exefile="msa")
+```
+
+
+
+## Step 5: PCA 
+
+Let's use our old friend `PCA` to make sense of the confusing, complicated structure relationships. 
+
+
+
+```{r}
+pca <- pca(pdbs)
+plot(pca)
+```
+

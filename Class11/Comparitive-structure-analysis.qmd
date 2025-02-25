@@ -1,0 +1,456 @@
+---
+title: "Comparative Structure Analysis"
+author: "Jordan Prych (PID: A17080226)"
+format: pdf
+toc: True
+---
+
+Here we run through a complete "pipeline" of structure analysis that begins with a single sequence identifier and ends in a PCA analysis. 
+
+Setup: 
+
+> Q10. Which of the packages above is found only on BioConductor and not CRAN?
+
+msa 
+
+>Q11. Which of the above packages is not found on BioConductor or CRAN?
+
+bio3d-view
+
+>Q12. True or False? Functions from the devtools package can be used to install packages from GitHub and BitBucket?
+
+True
+
+```{r}
+library(bio3d)
+
+```
+
+## Step 1: Get a Sequence 
+retrieve a sequence for the protein we are interested in. We will take ADK "1ake_A"
+
+```{r}
+id <- "1ake_A"
+aa <- get.seq(id)
+aa
+```
+
+>Q13.How many amino acids are in this sequence, i.e. how long is this sequence?
+
+214 AA long 
+
+## Step 2: BLAST Search 
+Run a BLAST search of the PDB for all related sequences to our input `aa`
+```{r}
+blast <- blast.pdb(aa)
+```
+
+```{r}
+hits <- plot(blast)
+```
+
+
+## Step 3: Download Structures 
+These are our "top hits" i.e. all the structures in the PDB database relates to our input sequences. 
+```{r}
+hits$pdb.id
+```
+
+```{r}
+#Download related PDB files 
+files <- get.pdb(hits$pdb.id, path="pbds", split=TRUE, gzip=TRUE)
+```
+
+## Step 4: Align and Superpose 
+
+```{r}
+# Align releated PDBs
+pbds <- pdbaln(files, fit = TRUE, exefile="msa")
+```
+
+## Step 5: PCA 
+
+Let's use our old friend `PCA` to make sense of the confusing, complicated structure relationships. 
+
+```{r}
+pca <- pca(pbds)
+plot(pca, 1:2)
+```
+
+## RMSD ANALYSIS
+RMSD is a common measure of structural distance used in structural biology. 
+```{r}
+rd <- rmsd(pbds, fit=T)
+```
+
+```{r}
+range(rd)
+```
+
+
+Let's make a trajectory (or movie) of the main confrontational changes captured by PC1. We will use the `mktrj()`. 
+
+```{r}
+mktrj(pca, file="pca~results.pdb")
+```
+
+![Main Confrontational Changes by PC1](PCA-RESULTS.PDB.png)
+
+Back of the envelope comparison of the PDB  size to UniProt
+
+```{r}
+uniprot <- 253206171
+pdb <- 231029
+pdb/uniprot *100 
+```
+
+## AlphaFold with HIP-pr dimer analysis
+
+
+
+```{r}
+results_dir1 <- "HIVprdimer_23119"
+```
+
+```{r}
+pdb_filesA <- list.files(path=results_dir1, pattern="*.pdb", full.names=TRUE)
+
+basename(pdb_filesA)
+```
+
+
+```{r}
+library(bio3d)
+
+pdbs3 <- pdbaln(pdb_filesA, fit=TRUE, exefile="msa")
+pdbs3
+```
+
+Now we can calculate RMSD
+```{r}
+rd2 <- rmsd(pdbs3, fit=TRUE)
+range(rd2)
+```
+Now we can draw a heatmap
+
+```{r}
+library(pheatmap)
+
+colnames(rd2) <- paste0("m",1:5)
+rownames(rd2) <- paste0("m",1:5)
+pheatmap(rd2)
+```
+
+Now we can plot the pLDDT values across all models
+
+```{r}
+pdb <- read.pdb("1hsg")
+```
+
+
+```{r}
+plotb3(pdbs3$b[1,], typ="l", lwd=2, sse=pdb)
+points(pdbs3$b[2,], typ="l", col="red")
+points(pdbs3$b[3,], typ="l", col="blue")
+points(pdbs3$b[4,], typ="l", col="darkgreen")
+points(pdbs3$b[5,], typ="l", col="orange")
+abline(v=100, col="gray")
+```
+
+To improve the superimposition/fitting of our models: 
+
+```{r}
+core <- core.find(pdbs3)
+core.inds <- print(core, vol=0.5)
+xyz <- pdbfit(pdbs3, core.inds, outpath="corefit_structures3")
+```
+
+Now we can examine the RMSF values between positions of the structure
+
+```{r}
+rf <- rmsf(xyz)
+
+plotb3(rf, sse=pdb)
+abline(v=100, col="gray", ylab="RMSF")
+```
+
+## Predicted Alignment Error for Domains 
+
+```{r}
+library(jsonlite)
+
+# Listing of all PAE JSON files
+pae_files <- list.files(path=results_dir1,
+                        pattern=".*model.*\\.json",
+                        full.names = TRUE)
+```
+
+
+```{r}
+pae1 <- read_json(pae_files[1],simplifyVector = TRUE)
+pae5 <- read_json(pae_files[5],simplifyVector = TRUE)
+
+attributes(pae1)
+```
+
+
+```{r}
+# Per-residue pLDDT scores 
+#  same as B-factor of PDB..
+head(pae1$plddt) 
+```
+
+```{r}
+pae1$max_pae
+pae5$max_pae
+```
+
+```{r}
+plot.dmat(pae1$pae, 
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)")
+
+```
+
+
+```{r}
+plot.dmat(pae5$pae, 
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)",
+          grid.col = "black",
+          zlim=c(0,30))
+```
+
+Here is the model 1 plot but using the same data range as the plot for model 5
+
+```{r}
+plot.dmat(pae1$pae, 
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)",
+          grid.col = "black",
+          zlim=c(0,30))
+```
+
+## Residue Conservation from Alignment File 
+
+```{r}
+aln_file <- list.files(path=results_dir1,
+                       pattern=".a3m$",
+                        full.names = TRUE)
+aln_file
+```
+```{r}
+aln <- read.fasta(aln_file[1], to.upper = TRUE)
+```
+
+```{r}
+dim(aln$ali)
+```
+
+```{r}
+sim <- conserv(aln)
+
+plotb3(sim[1:99], sse=trim.pdb(pdb, chain="A"),
+       ylab="Conservation Score")
+```
+
+```{r}
+con <- consensus(aln, cutoff = 0.9)
+con$seq
+```
+
+For final visualization, we can map this conservation score of the occupancy column of a PDB file for Mol* viewing
+
+```{r}
+m1.pdb <- read.pdb(pdb_filesA[1])
+occ <- vec2resno(c(sim[1:99], sim[1:99]), m1.pdb$atom$resno)
+write.pdb(m1.pdb, o=occ, file="m1_conserv.pdb")
+```
+
+![Dimer colored by sequence conservation. DTGA motif highlighted in green](m1_coserve.png)
+
+## Alpha Fold With Novel Protein 
+
+First, take the sequence of the novel protein to search AFDB
+
+The top hit was named "Interferon-induced protein with tetratricopeptide repeats 5" from Gallus gallus with ID A0A125RM76. 
+
+Visit corresponding AFDB structure page
+
+![](AFDB Novel Protein.png)
+Next, input the FAFSA sequence into AlphaFold2. 
+
+
+![AlphaFold Structure model colored by IDDT Values](AlphaFold-structure.png)
+
+![Sequence Coverage in MSA](plots-for-ifit5.png)
+
+## Visualization of the Models 
+
+we can use Mol* for visualization of your model PDB files
+
+![](superimposed-ifit5.png)
+
+Next we can color by pLDDT scores
+
+![](ifit5-recolored.png)
+
+```{r}
+#IFIT5 results 
+results_dir <- "ifit5_14356"
+```
+
+```{r}
+pdb_files <- list.files(path=results_dir, pattern="*.pdb", full.names=TRUE)
+
+basename(pdb_files)
+```
+```{r}
+library(bio3d)
+
+pdbs2 <- pdbaln(pdb_files, fit=TRUE, exefile="msa")
+pdbs2
+```
+```{r}
+pca <- pca(pdbs2)
+plot(pca)
+```
+
+
+
+RMSD is a standard measure of structural distance between coordinate sets. We can use `rmsd()` function to calculate the RMSD between all pairs and models. 
+
+```{r}
+rd <- rmsd(pdbs2, fit=TRUE)
+range(rd)
+```
+
+
+Draw a heatmap of these RMSD matrix values 
+```{r}
+library(pheatmap)
+
+colnames(rd) <- paste0("m",1:5)
+rownames(rd) <- paste0("m",1:5)
+pheatmap(rd)
+```
+
+
+Let's plot the pLDDT values across all models. This information is stored in the B-factor column of each model and that this is stored in our aligned `pdbs` object as `pdbs$b` with a row per structure/model 
+
+
+
+```{r}
+plotb3(pdbs2$b[1,], typ="l", lwd=2, sse=pdb)
+points(pdbs2$b[2,], typ="l", col="red")
+points(pdbs2$b[3,], typ="l", col="blue")
+points(pdbs2$b[4,], typ="l", col="darkgreen")
+points(pdbs2$b[5,], typ="l", col="orange")
+abline(v=100, col="gray")
+```
+
+
+```{r}
+core <- core.find(pdbs2)
+core.inds <- print(core, vol=0.5)
+```
+```{r}
+xyz <- pdbfit(pdbs2, core.inds, outpath="corefit_structures")
+```
+
+![Core Superimposed structures colored by B-factor](corefit.png)
+
+Now we can examine the RMSF between positions of the structure. 
+
+```{r}
+rf <- rmsf(xyz)
+
+plotb3(rf, sse=pdb)
+abline(v=100, col="gray", ylab="RMSF")
+```
+
+Predicted Alignment Error for Domains 
+
+AlphaFold produces an output called PAE. We read these files that AlphaFold produces a useful inter-domain prediction for  model 1 and 2
+
+```{r}
+library(jsonlite)
+
+# Listing of all PAE JSON files
+pae_files <- list.files(path=results_dir,
+                        pattern=".*model.*\\.json",
+                        full.names = TRUE)
+```
+
+```{r}
+pae1 <- read_json(pae_files[1],simplifyVector = TRUE)
+pae5 <- read_json(pae_files[5],simplifyVector = TRUE)
+
+attributes(pae1)
+```
+```{r}
+# Per-residue pLDDT scores 
+#  same as B-factor of PDB..
+head(pae1$plddt) 
+```
+
+```{r}
+pae1$max_pae
+pae5$max_pae
+```
+```{r}
+plot.dmat(pae1$pae, 
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)")
+```
+
+
+```{r}
+plot.dmat(pae5$pae, 
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)",
+          grid.col = "black",
+          zlim=c(0,30))
+```
+
+Here is a plot using the same z range. Here is model 1 plot using the same data range for model 5
+
+```{r}
+plot.dmat(pae1$pae, 
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)",
+          grid.col = "black",
+          zlim=c(0,30))
+```
+
+
+Residue conservation from alignment file 
+
+```{r}
+aln_file <- list.files(path=results_dir,
+                       pattern=".a3m$",
+                        full.names = TRUE)
+aln_file
+```
+
+```{r}
+aln <- read.fasta(aln_file[1], to.upper = TRUE)
+```
+
+```{r}
+dim(aln$ali)
+```
+
+
+I am having an issue finding the PDB file for my novel protein. It does not pull up the same species. 
+
+
+
+
+
+
+
+
+
+
+
