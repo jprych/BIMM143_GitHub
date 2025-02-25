@@ -1,0 +1,75 @@
+---
+title: "HWClass6"
+author: "Jordan Prych (PID: A17080226)"
+format: Rmd
+---
+
+Output of original code: 
+
+```{r}
+#access bio3d database
+library(bio3d)
+
+#read in PDB structures 
+ s1 <- read.pdb("4AKE")  # kinase with drug
+ s2 <- read.pdb("1AKE")  # kinase no drug
+ s3 <- read.pdb("1E4Y")  # kinase with drug
+ 
+ #takes the input of previous PDB structure and trims the file to a smaller subset of atoms, by selecting chain A and elety
+ s1.chainA <- trim.pdb(s1, chain="A", elety="CA")
+ s2.chainA <- trim.pdb(s2, chain="A", elety="CA")
+ s3.chainA <- trim.pdb(s1, chain="A", elety="CA")
+ 
+ #select for atom "b" from "atom" column (selecting beta factor from atom)
+ s1.b <- s1.chainA$atom$b
+ s2.b <- s2.chainA$atom$b
+ s3.b <- s3.chainA$atom$b
+ 
+#plotting beta factor
+ plotb3(s1.b, sse=s1.chainA, typ="l", ylab="Bfactor") 
+plotb3(s2.b, sse=s2.chainA, typ="l", ylab="Bfactor") 
+plotb3(s3.b, sse=s3.chainA, typ="l", ylab="Bfactor")
+```
+
+> Q6. How would you generalize the original code above to work with any set of input 
+protein structures?
+
+-Step 1 - read PDB code using `read.pdb()`. This function will read the file in PBD structures. The output accesses an-online PBD file and reads atom, seqres, helix, sheet, chain, and other variables pertaining to this protein.
+
+-Step 2 - trim PDB structure to a smaller subset of atoms using `trim.pdb()`. This function outputs a trimmed PBD file regarded specified information from the arguments(chain and elety)
+
+-Step 3 - select for atom "b" in chain A from "atom" column. This will select all "b" values in the "atom" column and output these values.
+
+-Step 4 - plot values using `plotb3()` function. This will generate a scatter plot of the beta factor. 
+
+```{r}
+#access bio3d database 
+library(bio3d)
+#input to function is protein PDB file to read  
+plot.pdb <- function(pdb.protein) {
+#read in PDB structures 
+   s <- read.pdb(pdb.protein)
+#takes the input of previous PDB structure and trims the file to a smaller subset of atoms, by selecting chain A and elety
+  s.chainA <- trim.pdb(s, chain="A", elety="CA")
+#select for atom "b" from "atom" column (selecting beta factor from atom)
+  s.b <- s.chainA$atom$b
+#plotting beta factor
+  plotb3(s.b, sse=s.chainA, typ="l", ylab="Bfactor")
+}
+  
+```
+
+
+Testing generated function: 
+
+```{r}
+plot.pdb("1AKE")
+```
+
+```{r}
+plot.pdb("4AKE")
+```
+
+```{r}
+plot.pdb("1E4Y")
+```
