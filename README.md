@@ -3,7 +3,7 @@
 My classwork from W25 [BIMM143](https://bioboot.github.io/bimm143_W25/) at UC San Diego 
 
 - Class04 [Intro to R]()
-- Class05 [Data Viz with ggplot](https://htmlpreview.github.io?https://raw.githubusercontent.com/jprych/BIMM143_GitHub/refs/heads/main/Class6/Class6/Class6.html)
+- Class05 [Data Viz with ggplot](https://htmlpreview.github.io/? https://raw.githubusercontent.com/jprych/BIMM143_GitHub/refs/heads/main/Class6/Class6/Class6.html)
 - Class06 [Writing R Functions](https://github.com/jprych/BIMM143_GitHub/blob/main/Class6/Class6/Class6.pdf)
 - Class07 Introduction to Machine Learning
 - Class08 Unsupervised Learning Miniproject
